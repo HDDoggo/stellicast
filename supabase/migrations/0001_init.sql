@@ -63,6 +63,7 @@ create table if not exists public.videos (
   is_promotional boolean not null default false,
   channel_id uuid references public.channels(id) on delete cascade,
   uploader_id uuid references public.users(id) on delete set null,
+  user_id uuid references public.users(id) on delete set null,
   status text not null default 'ready',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -346,13 +347,13 @@ drop policy if exists "delete own channel" on public.channels;
 create policy "delete own channel" on public.channels for delete using (owner_id = auth.uid());
 
 drop policy if exists "insert own video" on public.videos;
-create policy "insert own video" on public.videos for insert with check (uploader_id = auth.uid());
+create policy "insert own video" on public.videos for insert with check (auth.uid() is not null);
 
 drop policy if exists "update own video" on public.videos;
-create policy "update own video" on public.videos for update using (uploader_id = auth.uid());
+create policy "update own video" on public.videos for update using (uploader_id = auth.uid() or user_id = auth.uid());
 
 drop policy if exists "delete own video" on public.videos;
-create policy "delete own video" on public.videos for delete using (uploader_id = auth.uid());
+create policy "delete own video" on public.videos for delete using (uploader_id = auth.uid() or user_id = auth.uid());
 
 drop policy if exists "insert own comment" on public.comments;
 create policy "insert own comment" on public.comments for insert with check (user_id = auth.uid());
