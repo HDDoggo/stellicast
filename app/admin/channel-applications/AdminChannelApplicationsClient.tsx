@@ -85,7 +85,7 @@ export default function AdminChannelApplicationsClient() {
 
     useEffect(() => {
         fetchApplications(statusFilter);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // Intentionally keyed on statusFilter only.
     }, [statusFilter]);
 
     // -------- submit approve/reject decision --------
