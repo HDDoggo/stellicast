@@ -9,7 +9,7 @@ import ToastContainer from '@/components/ToastContainer';
 import EarlyAccessPopup from '@/components/EarlyAccessPopup';
 import WelcomeBanner from '@/components/WelcomeBanner';
 import { usePathname } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/../lib/supabase-client";
+import { createSupabaseBrowserClient, isSupabaseConfigured } from "@/../lib/supabase-client";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -192,6 +192,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 ].join(' ')}
             >
                 <div className="min-h-full bg-gradient-darker flex flex-col">
+                    {!isSupabaseConfigured && (
+                        <div className="border-b border-border bg-muted px-4 py-2 text-center text-xs text-muted-foreground">
+                            Backend not configured yet: accounts, videos and the feed stay empty until Supabase credentials are added.
+                        </div>
+                    )}
                     <div
                         className={[
                             'w-full flex-1 flex flex-col',
