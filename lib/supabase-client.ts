@@ -1,7 +1,14 @@
 import { createBrowserClient } from '@supabase/ssr';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// Fallbacks keep the UI renderable when the project is deployed without a
+// backend yet. Requests fail with an API error, which every caller already
+// handles, instead of throwing during prerender/hydration.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://not-configured.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'not-configured-anon-key';
+
+export const isSupabaseConfigured = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 let client: ReturnType<typeof createBrowserClient> | null = null;
 let initPromise: Promise<void> | null = null;

@@ -5,6 +5,11 @@ import { createServerClient } from '@supabase/ssr'
 export default async function proxy(req: NextRequest) {
   const res = NextResponse.next()
 
+  // Without backend credentials there is no session to refresh.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return res
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

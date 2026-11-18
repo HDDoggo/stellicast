@@ -2,9 +2,16 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseSecretKey = process.env.SUPABASE_SECRET_API_KEY!;
+// Fallbacks keep server rendering and API routes from throwing when the
+// deployment has no Supabase credentials yet; queries return an API error that
+// callers already handle, so pages render their empty states.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://not-configured.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'not-configured-anon-key';
+const supabaseSecretKey = process.env.SUPABASE_SECRET_API_KEY || 'not-configured-secret-key';
+
+export const isSupabaseConfigured = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
