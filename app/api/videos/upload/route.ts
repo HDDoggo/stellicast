@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/../lib/supabase-server';
 import { hasPermission } from '@/../lib/sector-utils';
+import { createMuxDirectUpload, isMuxConfigured } from '@/../lib/mux';
 import type { SectorRole } from '@/../types';
 
 // -------- Slug generation --------
@@ -48,6 +49,13 @@ async function generateUniqueSlug(supabase: any): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isMuxConfigured()) {
+      return NextResponse.json(
+        { error: 'Video processing is not configured yet. Add MUX_TOKEN_ID and MUX_TOKEN_SECRET in Settings.' },
+        { status: 503 }
+      );
+    }
+
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -87,36 +95,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create video placeholder in Bunny Stream
-    const createResponse = await fetch(
-      `https://video.bunnycdn.com/library/${process.env.BUNNY_STREAM_LIBRARY_ID}/videos`,
-      {
-        method: 'POST',
-        headers: {
-          'AccessKey': process.env.BUNNY_STREAM_API_KEY!,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ title: title || 'Untitled Video' }),
-      }
-    );
-
-    if (!createResponse.ok) throw new Error('Bunny Stream initialization failed');
-    const videoData = await createResponse.json();
-    const guid = videoData.guid;
-
-    const pullZone = process.env.BUNNY_PULL_ZONE_HOSTNAME;
-
     // Generate unique slug for the video
     const slug = await generateUniqueSlug(supabase);
 
-    // Store video metadata
+    // Store video metadata first so the Mux upload can carry the row id as passthrough.
+    // video_url / thumbnail_url are filled in by /api/videos/[id]/sync once Mux finishes processing.
     const { data: newVideo, error: dbError } = await supabase
       .from('videos')
       .insert({
         title: title || 'Untitled Video',
         description: body.description || '',
-        thumbnail_url: `https://${pullZone}/${guid}/thumbnail.jpg`,
-        video_url: `https://${pullZone}/${guid}/playlist.m3u8`,
+        thumbnail_url: '',
+        video_url: '',
         channel_id: channel_id,
         view_count: 0,
         duration: 0,
@@ -130,6 +120,21 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (dbError) throw dbError;
+
+    // Create the Mux direct upload. The browser uploads the file straight to Mux.
+    const origin =
+      request.headers.get('origin') ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      'http://localhost:3000';
+
+    let upload;
+    try {
+      upload = await createMuxDirectUpload({ corsOrigin: origin, passthrough: newVideo.id });
+    } catch (muxError) {
+      // Do not leave an orphaned row behind if Mux rejects the upload.
+      await supabase.from('videos').delete().eq('id', newVideo.id);
+      throw muxError;
+    }
 
     // -------- Sector linking with approval status --------
 
@@ -183,11 +188,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      guid,
+      guid: upload.id,
+      uploadUrl: upload.url,
       videoId: newVideo.id,
       slug: newVideo.slug,
-      libraryId: process.env.BUNNY_STREAM_LIBRARY_ID,
-      apiKey: process.env.BUNNY_STREAM_API_KEY,
+      provider: 'mux',
       pendingSectorSlugs,
     });
   } catch (error: any) {

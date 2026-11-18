@@ -81,9 +81,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const thumbnail = videoData.thumbnail_url;
 
     const embedUrl = `${baseUrl}/embed/${video.slug}`;
-    const videoGuid = videoData.video_url.split('/').slice(-2, -1)[0];
-    const pullZone = process.env.BUNNY_PULL_ZONE_HOSTNAME;
-    const mp4Url = `https://${pullZone}/${videoGuid}/play_720p.mp4`;
+    const muxPlaybackId =
+      typeof videoData.video_url === 'string' && videoData.video_url.includes('stream.mux.com')
+        ? videoData.video_url.split('/').pop()?.replace('.m3u8', '')
+        : null;
+    const mp4Url = muxPlaybackId
+      ? `https://stream.mux.com/${muxPlaybackId}/high.mp4`
+      : videoData.video_url;
 
     return {
       title,

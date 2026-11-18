@@ -278,6 +278,11 @@ export default function VideoUpload({
         uploadFileWithProgress(file, uploadTargetRef.current),
         thumbnailFile ? uploadThumbnail(id, thumbnailFile) : Promise.resolve(),
       ]);
+      if (id && guid) {
+        setUploadProgress(95);
+        setUploadStage('Processing video...');
+        await waitForMuxAsset(id, guid);
+      }
       setUploadProgress(100);
       setUploadStage('Upload complete');
       setUploading(false);
@@ -311,11 +316,7 @@ export default function VideoUpload({
         xhr.addEventListener('load', () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed with status ${xhr.status}`))));
         xhr.addEventListener('error', () => reject(new Error('Upload failed')));
         if (target?.uploadUrl) { try { xhr.open('PUT', target.uploadUrl, true); } catch (e) { reject(e); return; } }
-        else if (target?.libraryId && target?.apiKey && target?.guid) {
-          xhr.open('PUT', `https://video.bunnycdn.com/library/${target.libraryId}/videos/${target.guid}`, true);
-          xhr.setRequestHeader('AccessKey', target.apiKey);
-          xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-        } else { reject(new Error('No upload target available')); return; }
+        else { reject(new Error('No upload target available')); return; }
         xhr.send(file);
       });
 
@@ -324,6 +325,27 @@ export default function VideoUpload({
     formData.append('thumbnail', file);
     const res = await fetch(`/api/videos/${videoId}/thumbnail`, { method: 'POST', body: formData });
     if (!res.ok) console.warn('[upload] Thumbnail upload failed:', await res.text().catch(() => ''));
+  };
+
+  // Mux processes the upload asynchronously; poll until the playback url is stored.
+  const waitForMuxAsset = async (videoId: string, uploadId: string): Promise<boolean> => {
+    for (let attempt = 0; attempt < 12; attempt++) {
+      try {
+        const res = await fetch(`/api/videos/${videoId}/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uploadId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.status === 'ready') return true;
+        }
+      } catch (err) {
+        console.error('[upload] Mux sync poll failed', err);
+      }
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+    return false;
   };
 
   const handlePublish = async () => {
