@@ -33,8 +33,8 @@ export default async function SectorsPage() {
     ]);
 
     // Fetch which sectors the current user has joined
-    let memberSectorIds = new Set<string>();
-    let memberRoles: Record<string, string> = {};
+    const memberSectorIds = new Set<string>();
+    const memberRoles: Record<string, string> = {};
     if (user) {
         const { data: memberships } = await supabase
             .from('sector_members')

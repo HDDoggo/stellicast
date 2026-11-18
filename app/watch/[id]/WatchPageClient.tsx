@@ -529,8 +529,8 @@ export default function WatchPageClient({ params }: {
     const newDisliked = false;
 
     // Calculate count changes
-    let likesDelta = newLiked ? 1 : -1;
-    let dislikesDelta = wasDisliked ? -1 : 0;
+    const likesDelta = newLiked ? 1 : -1;
+    const dislikesDelta = wasDisliked ? -1 : 0;
 
     // Apply optimistic update
     setLiked(newLiked);
@@ -644,8 +644,8 @@ export default function WatchPageClient({ params }: {
     const newLiked = false;
 
     // Calculate count changes
-    let likesDelta = wasLiked ? -1 : 0;
-    let dislikesDelta = newDisliked ? 1 : -1;
+    const likesDelta = wasLiked ? -1 : 0;
+    const dislikesDelta = newDisliked ? 1 : -1;
 
     setDisliked(newDisliked);
     setLiked(newLiked);
